@@ -243,7 +243,7 @@
       <h2>🎮 Configurar Jugadores</h2>
       
       <!-- Indicador de carga del diccionario -->
-      <div id="dictionaryStatus" class="loading">Cargando diccionario...</div>
+      <div id="dictionaryStatus" class="loading">Preparando juego...</div>
       
       <!-- Selector de número de jugadores -->
       <div class="player-count-selector" id="playerCountSelector" style="display: none;">
@@ -379,41 +379,65 @@
         .replace(/[^a-zñ]/g, "");
     }
 
-    // Variables globales del diccionario
-    let validWordsSet = new Set();
-    let isDictionaryLoaded = false;
+    // Variables globales para el diccionario
+    let validWordsCache = new Set();
+    let invalidWordsCache = new Set();
+    let isDictionaryReady = false;
 
-    async function loadDictionary() {
+    // Función para verificar una palabra usando la API de Wiktionary
+    async function checkWordInWiktionary(word) {
+      // Si ya sabemos que es válida, devolver true
+      if (validWordsCache.has(word)) {
+        return true;
+      }
+      
+      // Si ya sabemos que es inválida, devolver false
+      if (invalidWordsCache.has(word)) {
+        return false;
+      }
+
       try {
-        console.log('Intentando cargar diccionario...');
-        updateDictionaryStatus('Cargando diccionario...');
+        const url = `https://es.wiktionary.org/w/api.php?action=query&titles=${encodeURIComponent(word)}&format=json&origin=*`;
         
-        const res = await fetch("https://raw.githubusercontent.com/javierarce/palabras/master/listado-general.txt");
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
+        // Timeout de 5 segundos para la petición
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`Error HTTP: ${response.status}`);
         }
-        const text = await res.text();
-        const words = text
-          .split('\n')
-          .map(p => p.trim())
-          .filter(p => p.length > 0)
-          .map(p => normalizeWord(p))
-          .filter(p => /^[a-zñ]+$/.test(p));
         
-        validWordsSet = new Set(words);
-        isDictionaryLoaded = true;
-        console.log(`Diccionario cargado con ${validWordsSet.size} palabras`);
-        updateDictionaryStatus('¡Diccionario cargado correctamente!');
-        showPlayerSetupForm();
+        const data = await response.json();
+        const pages = data.query.pages;
+        
+        // Si alguna de las páginas tiene un ID negativo, la palabra no existe
+        let exists = false;
+        for (const pageId in pages) {
+          if (parseInt(pageId) > 0) {
+            exists = true;
+            break;
+          }
+        }
+        
+        // Guardar en caché
+        if (exists) {
+          validWordsCache.add(word);
+          console.log(`Palabra "${word}" encontrada en Wiktionary`);
+        } else {
+          invalidWordsCache.add(word);
+          console.log(`Palabra "${word}" NO encontrada en Wiktionary`);
+        }
+        
+        return exists;
       } catch (error) {
-        console.error('Error cargando diccionario:', error);
-        // Crear un diccionario básico como fallback
-        const basicWords = ['casa', 'gato', 'perro', 'mesa', 'silla', 'libro', 'agua', 'fuego', 'tierra', 'aire', 'luz', 'sol', 'luna', 'mar', 'rio', 'monte', 'flor', 'arbol', 'pez', 'ave', 'pan', 'sal', 'oro', 'paz', 'amor', 'vida', 'tiempo', 'mundo', 'cielo', 'estrella', 'mano', 'ojo', 'cara', 'pelo', 'azul', 'rojo', 'verde', 'negro', 'blanco', 'grande', 'pequeño', 'bueno', 'malo', 'nuevo', 'viejo', 'alto', 'bajo', 'largo', 'corto', 'feliz'];
-        validWordsSet = new Set(basicWords);
-        isDictionaryLoaded = true;
-        console.log(`Usando diccionario básico con ${validWordsSet.size} palabras`);
-        updateDictionaryStatus('Diccionario básico cargado');
-        showPlayerSetupForm();
+        console.error('Error verificando palabra en Wiktionary:', error);
+        
+        // Si hay error de red, asumimos que la palabra no es válida
+        // pero no la guardamos en caché para poder intentar de nuevo
+        return false;
       }
     }
 
@@ -430,6 +454,9 @@
       document.getElementById('player2Container').style.display = 'block';
       document.getElementById('player3Container').style.display = 'block';
       document.getElementById('startGameButton').style.display = 'block';
+      
+      // Marcar que el diccionario está listo
+      isDictionaryReady = true;
       
       // Enfocar el primer campo
       document.getElementById('player1').focus();
@@ -513,12 +540,6 @@
       player3Input.disabled = false;
       player3Input.placeholder = 'Nombre del tercer jugador';
       
-      // Verificar que el diccionario esté disponible
-      if (!isDictionaryLoaded || validWordsSet.size === 0) {
-        console.warn('Diccionario no disponible, recargando...');
-        loadDictionary();
-      }
-      
       console.log('Juego reseteado completamente');
     }
 
@@ -555,8 +576,8 @@
 
     // Configurar jugadores
     function setupPlayers() {
-      if (!isDictionaryLoaded) {
-        showNotification('Esperando a que se cargue el diccionario...', false);
+      if (!isDictionaryReady) {
+        showNotification('El juego aún no está listo. Intenta de nuevo.', false);
         return;
       }
 
@@ -612,10 +633,10 @@
     function initGame() {
       console.log('Inicializando juego...');
       
-      // Verificar que el diccionario esté cargado
-      if (!isDictionaryLoaded || validWordsSet.size === 0) {
-        console.error('Diccionario no disponible');
-        showNotification('Error: Diccionario no disponible. Recarga la página.', false);
+      // Verificar que el diccionario esté listo
+      if (!isDictionaryReady) {
+        console.error('El diccionario no está disponible');
+        showNotification('Error: El juego no está listo. Intenta recargar la página.', false);
         return;
       }
 
@@ -811,11 +832,8 @@
       document.getElementById('gameOver').style.display = 'flex';
     }
 
-    function isValidWord(word) {
-      if (!isDictionaryLoaded) {
-        return { valid: false, message: 'Diccionario no disponible.' };
-      }
-
+    async function isValidWord(word) {
+      // Validaciones básicas
       if (word.length < 3) return { valid: false, message: 'La palabra debe tener al menos 3 letras.' };
       if (!/^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+$/.test(word)) return { valid: false, message: 'Solo se permiten letras.' };
       
@@ -849,12 +867,20 @@
         usedIndices.push(foundIndex);
       }
 
-      if (!validWordsSet.has(normalized)) {
-        return { valid: false, message: 'Palabra no reconocida. ¡Intenta con otra!' };
-      }
-      
+      // Verificar si ya se encontró esta palabra
       if (foundWords.some(w => normalizeWord(w) === normalized)) {
         return { valid: false, message: 'Ya has encontrado esta palabra.' };
+      }
+      
+      // Verificar en Wiktionary
+      try {
+        const exists = await checkWordInWiktionary(normalized);
+        if (!exists) {
+          return { valid: false, message: 'Palabra no reconocida. ¡Intenta con otra!' };
+        }
+      } catch (error) {
+        console.error('Error verificando palabra:', error);
+        return { valid: false, message: 'Error al verificar la palabra. Intenta de nuevo.' };
       }
       
       return { valid: true, usedIndices };
@@ -872,7 +898,7 @@
       document.getElementById('wordInput').value = '';
     }
 
-    function submitWord() {
+    async function submitWord() {
       if (!gameActive) return;
       
       const input = document.getElementById('wordInput');
@@ -884,7 +910,17 @@
         return;
       }
       
-      const validation = isValidWord(word);
+      // Mostrar mensaje de verificación
+      const submitButton = document.getElementById('submitWord');
+      const originalText = submitButton.textContent;
+      submitButton.textContent = '⏳ Verificando...';
+      submitButton.disabled = true;
+      
+      const validation = await isValidWord(word);
+      
+      // Restaurar botón
+      submitButton.textContent = originalText;
+      submitButton.disabled = false;
       
       if (validation.valid) {
         foundWords.push(word);
@@ -1023,28 +1059,14 @@
     window.addEventListener('load', async () => {
       console.log('Cargando aplicación...');
       
-      try {
-        // Cargar diccionario primero
-        await loadDictionary();
-        console.log('Diccionario cargado correctamente');
-      } catch (error) {
-        console.error('Error cargando diccionario:', error);
-        updateDictionaryStatus('Error cargando diccionario. Usando diccionario básico.');
-        showPlayerSetupForm();
-      }
+      // Inicializar el juego
+      updateDictionaryStatus('¡Juego listo!');
+      showPlayerSetupForm();
       
       // Configurar funcionalidades
       setupPlayerCount();
       setupEnterNavigation();
     });
-
-    // Verificar periódicamente que el diccionario esté disponible
-    setInterval(() => {
-      if (!isDictionaryLoaded || validWordsSet.size === 0) {
-        console.warn('Diccionario no disponible, reintentando carga...');
-        loadDictionary();
-      }
-    }, 30000); // Verificar cada 30 segundos
   </script>
 </body>
 </html>
