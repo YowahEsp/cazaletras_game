@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Caza de Letras</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    /* 🎨 --- Estilos iguales a los que ya tienes --- */
+    @import url('https://fonts.googleapis.com/css2?family=Fredoka+One:wght@400&family=Nunito:wght@400;600;700&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{width:100%;height:100%;overflow:hidden;font-family:'Nunito',sans-serif}
+    body{background:linear-gradient(135deg,#4facfe 0%,#00f2fe 100%);display:flex;justify-content:center;align-items:center;padding:1vh 1vw;position:relative}
+    body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle,rgba(255,255,255,0.1) 1px,transparent 1px);background-size:50px 50px;animation:float 20s infinite linear;z-index:-1}
+    @keyframes float{0%{transform:translate(0,0) rotate(0deg)}100%{transform:translate(-50px,-50px) rotate(360deg)}}
+    h1{font-family:'Fredoka One',cursive;font-size:clamp(1.5rem,5vh,2.5rem);color:#fff;text-shadow:3px 3px 6px rgba(0,0,0,0.3);text-align:center;animation:bounce 2s ease-in-out infinite alternate;margin-bottom:1.5vh}
+    @keyframes bounce{0%{transform:translateY(0px)}100%{transform:translateY(-5px)}}
+    .game-wrapper{display:flex;flex-direction:column;width:100%;height:100%;max-width:900px;max-height:95vh}
+    .game-info{display:flex;justify-content:space-between;background:rgba(255,255,255,0.95);padding:clamp(10px,2vh,15px);border-radius:15px;box-shadow:0 10px 30px rgba(0,0,0,0.2);margin-bottom:1.5vh;font-weight:600;color:#4a5568;font-size:clamp(0.8rem,2.5vmin,1rem)}
+    .game-container{flex:1;display:flex;flex-direction:column;gap:2vh;background:rgba(255,255,255,0.95);padding:clamp(10px,2vmin,20px);border-radius:20px;box-shadow:0 15px 40px rgba(0,0,0,0.2);backdrop-filter:blur(10px);border:2px solid rgba(255,255,255,0.3);overflow:hidden}
+    .letters-container{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:15px;background:linear-gradient(145deg,#f7fafc,#edf2f7);border-radius:15px;min-height:20vh}
+    .letter{width:clamp(40px,8vmin,60px);height:clamp(40px,8vmin,60px);display:flex;justify-content:center;align-items:center;background:linear-gradient(135deg,#667eea,#764ba2);color:white;font-size:clamp(1.2rem,4vmin,1.8rem);border-radius:10px;font-weight:bold;cursor:pointer;transition:all 0.3s ease;box-shadow:0 4px 8px rgba(0,0,0,0.1);font-family:'Fredoka One',cursive}
+    .letter:hover:not(.used){transform:translateY(-3px) scale(1.05);box-shadow:0 6px 12px rgba(0,0,0,0.15)}
+    .letter.used{background:linear-gradient(135deg,#a0aec0,#718096);transform:scale(0.9);opacity:0.6;cursor:not-allowed}
+    .letter.vowel.used{background:linear-gradient(135deg,#667eea,#764ba2);transform:scale(1);opacity:1;cursor:pointer}
+    .word-input{display:flex;align-items:center;gap:10px;padding:15px;background:linear-gradient(135deg,#e0e7ff,#c7d2fe);border-radius:12px;border:2px solid #a5b4fc}
+    #wordInput{flex:1;padding:12px 15px;font-size:clamp(1rem,3vmin,1.2rem);border:2px solid #e2e8f0;border-radius:10px;transition:all 0.3s ease;font-family:'Nunito',sans-serif}
+    #wordInput:focus{outline:none;border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,0.1)}
+    button{padding:clamp(8px,1.5vh,12px) 20px;font-size:clamp(12px,2.5vmin,16px);font-weight:600;border:none;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border-radius:10px;cursor:pointer;transition:all 0.3s ease;font-family:'Nunito',sans-serif;box-shadow:0 4px 15px rgba(102,126,234,0.3)}
+    button:hover:not(:disabled){transform:translateY(-3px);box-shadow:0 8px 25px rgba(102,126,234,0.4)}
+    button:disabled{opacity:0.5;cursor:not-allowed}
+    #clearButton{background:linear-gradient(135deg,#f59e0b,#d97706);box-shadow:0 4px 15px rgba(245,158,11,0.3)}
+    #clearButton:hover{box-shadow:0 8px 25px rgba(245,158,11,0.4)}
+    .words-found{display:flex;flex-direction:column;gap:10px;padding:15px;background:linear-gradient(135deg,#fef3c7,#fed7aa);border-radius:12px;border-left:5px solid #f59e0b;max-height:25vh;overflow-y:auto}
+    .words-found h3{color:#92400e;font-size:clamp(0.9rem,2.5vmin,1.1rem)}
+    #wordsList{display:flex;flex-wrap:wrap;gap:8px}
+    .found-word{background:linear-gradient(135deg,#a7f3d0,#6ee7b7);padding:5px 10px;border-radius:20px;font-size:clamp(0.8rem,2vmin,1rem);color:#065f46;font-weight:600;animation:popIn 0.5s ease-out}
+    @keyframes popIn{0%{transform:scale(0);opacity:0}70%{transform:scale(1.1);opacity:0.8}100%{transform:scale(1);opacity:1}}
+    .notification{padding:clamp(8px,1.5vh,12px);border-radius:10px;font-weight:600;text-align:center;display:none;margin-top:10px;animation:fadeInOut 3s ease-in-out}
+    .success{background-color:#d1fae5;color:#065f46;border:1px solid #a7f3d0}
+    .error{background-color:#fee2e2;color:#991b1b;border:1px solid #fecaca}
+    @keyframes fadeInOut{0%{opacity:0;transform:translateY(-10px)}20%{opacity:1;transform:translateY(0)}80%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-10px)}}
+    .timer{font-family:'Fredoka One',cursive;color:#d53f8c;font-size:clamp(1.2rem,4vmin,1.8rem)}
+    .score{font-family:'Fredoka One',cursive;color:#2d3748;font-size:clamp(1.2rem,4vmin,1.8rem)}
+    .game-over{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:10;display:none}
+    .game-over-content{background:white;padding:30px;border-radius:20px;text-align:center;max-width:80%;box-shadow:0 15px 40px rgba(0,0,0,0.3)}
+    .game-over h2{font-family:'Fredoka One',cursive;color:#2d3748;margin-bottom:15px;font-size:clamp(1.5rem,5vmin,2.5rem)}
+    .final-score{font-size:clamp(1.2rem,4vmin,1.8rem);color:#667eea;margin:15px 0;font-weight:bold}
+    .players-scores{background:linear-gradient(135deg,#e0e7ff,#c7d2fe);padding:15px;border-radius:12px;margin-top:10px;border:2px solid #a5b4fc}
+    .player-score{font-family:'Fredoka One',cursive;font-size:clamp(0.9rem,2.5vmin,1.1rem);color:#4a5568;margin:5px 0;font-weight:600}
+    .current-player{background:linear-gradient(135deg,#f59e0b,#d97706);color:white;padding:15px 20px;border-radius:15px;font-weight:bold;font-family:'Fredoka One',cursive;font-size:clamp(1.2rem,4vmin,1.8rem);text-align:center;margin:15px 0;box-shadow:0 8px 25px rgba(245,158,11,0.4);border:3px solid #fbbf24;animation:pulse 2s infinite;text-shadow:2px 2px 4px rgba(0,0,0,0.3)}
+    @keyframes pulse{0%{transform:scale(1);box-shadow:0 8px 25px rgba(245,158,11,0.4)}50%{transform:scale(1.05);box-shadow:0 12px 35px rgba(245,158,11,0.6)}100%{transform:scale(1);box-shadow:0 8px 25px rgba(245,158,11,0.4)}}
+    .round-indicator{font-family:'Fredoka One',cursive;color:#d53f8c;font-size:clamp(1rem,3vmin,1.5rem);margin:10px 0;text-align:center}
+    .player-setup{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:20}
+    .setup-form{background:white;padding:30px;border-radius:20px;text-align:center;max-width:400px;width:90%;box-shadow:0 15px 40px rgba(0,0,0,0.3)}
+    .setup-form h2{font-family:'Fredoka One',cursive;color:#2d3748;margin-bottom:20px;font-size:clamp(1.2rem,4vmin,1.8rem)}
+    .player-count-selector{margin:20px 0;text-align:center}
+    .player-count-selector label{display:block;font-weight:600;color:#4a5568;margin-bottom:10px;font-size:clamp(1rem,3vmin,1.2rem)}
+    .player-count-buttons{display:flex;gap:10px;justify-content:center}
+    .player-count-btn{padding:10px 20px;font-size:clamp(1rem,3vmin,1.2rem);font-family:'Fredoka One',cursive;font-weight:600;border:2px solid #e2e8f0;background:white;color:#4a5568;border-radius:10px;cursor:pointer;transition:all 0.3s ease}
+    .player-count-btn.selected{background:linear-gradient(135deg,#667eea,#764ba2);color:white;border-color:#667eea;box-shadow:0 4px 15px rgba(102,126,234,0.3)}
+    .player-count-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(102,126,234,0.2)}
+    .player-input{margin:15px 0;opacity:1;transition:opacity 0.3s ease}
+    .player-input.disabled{opacity:0.5}
+    .player-input label{display:block;font-weight:600;color:#4a5568;margin-bottom:5px;font-size:clamp(0.9rem,2.5vmin,1rem)}
+    .player-input input{width:100%;padding:10px 15px;font-size:clamp(0.9rem,2.5vmin,1rem);border:2px solid #e2e8f0;border-radius:10px;transition:all 0.3s ease;font-family:'Nunito',sans-serif}
+    .player-input input:focus{outline:none;border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,0.1)}
+    .player-input input:disabled{background-color:#f7fafc;cursor:not-allowed}
+    #startGameButton{margin-top:20px;width:100%}
+    .start-timer-button{background:linear-gradient(135deg,#10b981,#059669);color:white;padding:15px 30px;font-size:clamp(1rem,3vmin,1.3rem);font-family:'Fredoka One',cursive;border:none;border-radius:15px;cursor:pointer;transition:all 0.3s ease;box-shadow:0 6px 20px rgba(16,185,129,0.4);margin:15px 0}
+    .start-timer-button:hover{transform:translateY(-3px);box-shadow:0 8px 25px rgba(16,185,129,0.5)}
+    .start-timer-button:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+    @media (min-width:768px) and (min-height:500px){.game-container{flex-direction:row}.letters-container{flex:1}.game-controls{flex:1;display:flex;flex-direction:column}}
+  </style>
+</head>
+<body>
+  <div class="player-setup" id="playerSetup">
+    <div class="setup-form">
+      <h2>🎮 Configurar Jugadores</h2>
+      
+      <div class="player-count-selector">
+        <label>¿Cuántos jugadores van a jugar?</label>
+        <div class="player-count-buttons">
+          <button type="button" class="player-count-btn" data-players="2">2 Jugadores</button>
+          <button type="button" class="player-count-btn selected" data-players="3">3 Jugadores</button>
+        </div>
+      </div>
+
+      <div class="player-input">
+        <label for="player1">Jugador 1:</label>
+        <input type="text" id="player1" placeholder="Nombre del primer jugador">
+      </div>
+      <div class="player-input">
+        <label for="player2">Jugador 2:</label>
+        <input type="text" id="player2" placeholder="Nombre del segundo jugador">
+      </div>
+      <div class="player-input" id="player3Container">
+        <label for="player3">Jugador 3:</label>
+        <input type="text" id="player3" placeholder="Nombre del tercer jugador">
+      </div>
+      <button id="startGameButton">🚀 Comenzar Juego</button>
+    </div>
+  </div>
+
+  <div class="game-wrapper">
+    <h1>🔍 Caza de Letras 🔤</h1>
+    <div class="game-info">
+      <div class="timer">⏱️ Tiempo: <span id="timeLeft">60</span>s</div>
+      <div class="score">🏆 Puntos: <span id="score">0</span></div>
+    </div>
+    <div class="game-container">
+      <div class="letters-container" id="lettersContainer"></div>
+      <div class="game-controls">
+        <button id="startTimerButton" class="start-timer-button" style="display: none;">⏰ Pulsa para comenzar</button>
+        <div class="word-input">
+          <input type="text" id="wordInput" placeholder="Escribe tu palabra aquí..." maxlength="15" disabled>
+          <button id="clearButton" disabled>🧹 Limpiar</button>
+          <button id="submitWord" disabled>✅ Enviar</button>
+        </div>
+        <div class="notification" id="notification"></div>
+        <div class="words-found">
+          <h3>📋 Palabras encontradas:</h3>
+          <div id="wordsList"></div>
+        </div>
+        <div class="players-scores" id="playersScores"></div>
+        <div id="currentPlayerIndicator" class="current-player" style="display: none;"></div>
+        <div id="roundIndicator" class="round-indicator" style="display: none;"></div>
+      </div>
+    </div>
+  </div>
+  <div class="game-over" id="gameOver">
+    <div class="game-over-content">
+      <h2 id="gameOverTitle">¡Juego Terminado!</h2>
+      <p class="final-score">Puntuación final: <span id="finalScore">0</span></p>
+      <p id="gameOverMessage">¡Felicidades! El ganador es <span id="winnerName">Jugador</span> con <span id="winnerScore">0</span> puntos.</p>
+      <button id="playAgain">🔄 Jugar de nuevo</button>
+    </div>
+  </div>
+
+  <script>
+    class SoundManager {
+      constructor() {
+        this.audioContext = null;
+        this.initAudioContext();
+      }
+
+      initAudioContext() {
+        try {
+          this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (e) {
+          console.log('Web Audio API no soportada');
+        }
+      }
+
+      playBeep(frequency = 800, duration = 200, type = 'sine') {
+        if (!this.audioContext) return;
+        
+        try {
+          if (this.audioContext.state === 'suspended') {
+            this.audioContext.resume();
+          }
+
+          const oscillator = this.audioContext.createOscillator();
+          const gainNode = this.audioContext.createGain();
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(this.audioContext.destination);
+          
+          oscillator.frequency.value = frequency;
+          oscillator.type = type;
+          
+          gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration / 1000);
+          
+          oscillator.start(this.audioContext.currentTime);
+          oscillator.stop(this.audioContext.currentTime + duration / 1000);
+        } catch (e) {
+          console.log('Error reproduciendo sonido:', e);
+        }
+      }
+
+      playSuccess() {
+        this.playBeep(523, 150);
+        setTimeout(() => this.playBeep(659, 200), 100);
+      }
+
+      playError() {
+        this.playBeep(200, 300, 'square');
+      }
+
+      playTimeUp() {
+        this.playBeep(400, 200);
+        setTimeout(() => this.playBeep(350, 200), 150);
+        setTimeout(() => this.playBeep(300, 300), 300);
+      }
+    }
+
+    const soundManager = new SoundManager();
+
+    function normalizeWord(word) {
+      return word.toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zñ]/g, "");
+    }
+
+    let validWordsSet = new Set();
+
+    async function loadDictionary() {
+      try {
+        console.log('Cargando diccionario externo...');
+        const res = await fetch("https://raw.githubusercontent.com/javierarce/palabras/master/listado-general.txt");
+        if (!res.ok) {
+          throw new Error(`Error HTTP: ${res.status}`);
+        }
+        const text = await res.text();
+        const words = text
+          .split('\n')
+          .map(p => p.trim())
+          .filter(p => p.length > 0)
+          .map(p => normalizeWord(p))
+          .filter(p => /^[a-zñ]+$/.test(p));
+        validWordsSet = new Set(words);
+        console.log(`Diccionario cargado con ${validWordsSet.size} palabras.`);
+      } catch (error) {
+        console.error('Error crítico al cargar el diccionario:', error);
+        // Sin diccionario de respaldo, el juego se ejecutará con el Set vacío.
+        alert("No se pudo cargar el diccionario. El juego no funcionará correctamente. Revisa la conexión a internet.");
+      }
+    }
+
+    // Variables del juego
+    let gameLetters = [];
+    let foundWords = [];
+    let score = 0;
+    let timeLeft = 60;
+    let timerInterval;
+    let gameActive = false;
+    let timerStarted = false;
+    let currentRound = 1;
+    let currentPlayerIndex = 0;
+    let players = [];
+    let playerScores = [];
+    let roundWordCount = 0;
+    let letterUsageCount = {};
+    let numberOfPlayers = 3;
+
+    const VOWELS = ['A', 'E', 'I', 'O', 'U'];
+
+    function setupPlayerCount() {
+      const playerCountButtons = document.querySelectorAll('.player-count-btn');
+      const player3Container = document.getElementById('player3Container');
+      const player3Input = document.getElementById('player3');
+
+      playerCountButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          playerCountButtons.forEach(btn => btn.classList.remove('selected'));
+          this.classList.add('selected');
+          
+          numberOfPlayers = parseInt(this.dataset.players);
+          
+          if (numberOfPlayers === 2) {
+            player3Container.classList.add('disabled');
+            player3Input.disabled = true;
+            player3Input.value = '';
+            player3Input.placeholder = 'No disponible';
+          } else {
+            player3Container.classList.remove('disabled');
+            player3Input.disabled = false;
+            player3Input.placeholder = 'Nombre del tercer jugador';
+          }
+        });
+      });
+    }
+
+    function setupPlayers() {
+      let playerNames = [];
+      const player1Name = document.getElementById('player1').value.trim() || 'Jugador 1';
+      const player2Name = document.getElementById('player2').value.trim() || 'Jugador 2';
+      playerNames.push(player1Name, player2Name);
+      
+      if (numberOfPlayers === 3) {
+        const player3Name = document.getElementById('player3').value.trim() || 'Jugador 3';
+        playerNames.push(player3Name);
+      }
+      
+      players = playerNames;
+      
+      document.getElementById('playerSetup').style.display = 'none';
+      initGame();
+    }
+
+    function setupEnterNavigation() {
+      document.getElementById('player1').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') document.getElementById('player2').focus();
+      });
+
+      document.getElementById('player2').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          if (numberOfPlayers === 3 && !document.getElementById('player3').disabled) {
+            document.getElementById('player3').focus();
+          } else {
+            setupPlayers();
+          }
+        }
+      });
+
+      document.getElementById('player3').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.target.disabled) setupPlayers();
+      });
+    }
+
+    async function initGame() {
+      currentRound = 1;
+      currentPlayerIndex = 0;
+      playerScores = new Array(numberOfPlayers).fill(0);
+      
+      updatePlayersScoresDisplay();
+      showCurrentPlayerInfo();
+      showRoundIndicator();
+      
+      startNewRound();
+    }
+    
+    // *** NUEVA FUNCIÓN PARA REINICIO COMPLETO ***
+    function resetFullGame() {
+        clearInterval(timerInterval);
+
+        // Resetear todas las variables de estado
+        gameLetters = [];
+        foundWords = [];
+        score = 0;
+        timeLeft = 60;
+        gameActive = false;
+        timerStarted = false;
+        currentRound = 1;
+        currentPlayerIndex = 0;
+        players = [];
+        playerScores = [];
+        roundWordCount = 0;
+        letterUsageCount = {};
+        
+        // Resetear la interfaz
+        document.getElementById('gameOver').style.display = 'none';
+        document.getElementById('playerSetup').style.display = 'flex';
+        document.getElementById('score').textContent = '0';
+        document.getElementById('timeLeft').textContent = '60';
+        document.getElementById('wordsList').innerHTML = '';
+        document.getElementById('lettersContainer').innerHTML = '';
+        document.getElementById('playersScores').innerHTML = '';
+        document.getElementById('currentPlayerIndicator').style.display = 'none';
+        document.getElementById('roundIndicator').style.display = 'none';
+        
+        // Enfocar el primer input para una nueva partida
+        document.getElementById('player1').focus();
+    }
+
+    function generateLetters() {
+      const vowels = ['A','E','I','O','U'];
+      const consonants = ['B','C','D','F','G','H','J','L','M','N','P','Q','R','S','T','V','X','Y','Z'];
+      let letters = [...vowels];
+      
+      for (let i = 0; i < 11; i++) {
+        letters.push(consonants[Math.floor(Math.random() * consonants.length)]);
+      }
+      return shuffleArray(letters);
+    }
+
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function startNewRound() {
+      gameLetters = generateLetters();
+      foundWords = [];
+      score = 0;
+      timeLeft = 60;
+      gameActive = false;
+      timerStarted = false;
+      roundWordCount = 0;
+      letterUsageCount = {};
+
+      gameLetters.forEach((letter, index) => {
+        letterUsageCount[index] = 0;
+      });
+
+      document.getElementById('score').textContent = score;
+      document.getElementById('timeLeft').textContent = timeLeft;
+      document.getElementById('wordsList').innerHTML = '';
+      clearInput();
+
+      document.getElementById('startTimerButton').style.display = 'block';
+      document.getElementById('wordInput').disabled = true;
+      document.getElementById('clearButton').disabled = true;
+      document.getElementById('submitWord').disabled = true;
+
+      renderLetters();
+    }
+
+    function startTimer() {
+      if (timerStarted) return;
+      
+      timerStarted = true;
+      gameActive = true;
+      
+      document.getElementById('startTimerButton').style.display = 'none';
+      document.getElementById('wordInput').disabled = false;
+      document.getElementById('clearButton').disabled = false;
+      document.getElementById('submitWord').disabled = false;
+      document.getElementById('wordInput').focus();
+
+      clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        if (timeLeft > 0) {
+          timeLeft--;
+          document.getElementById('timeLeft').textContent = timeLeft;
+        } else {
+          endTurn();
+        }
+      }, 1000);
+    }
+
+    function renderLetters() {
+      const container = document.getElementById('lettersContainer');
+      container.innerHTML = '';
+      
+      gameLetters.forEach((letter, index) => {
+        const el = document.createElement('div');
+        el.className = 'letter';
+        el.textContent = letter;
+        el.dataset.index = index;
+        
+        const isVowel = VOWELS.includes(letter);
+        const isUsed = letterUsageCount[index] > 0 && !isVowel;
+        
+        if (isUsed) {
+          el.classList.add('used');
+        } else {
+          if (isVowel && letterUsageCount[index] > 0) {
+            el.classList.add('vowel', 'used');
+          }
+          el.addEventListener('click', () => {
+            if (gameActive && (!isUsed || isVowel)) {
+              document.getElementById('wordInput').value += letter;
+            }
+          });
+        }
+        container.appendChild(el);
+      });
+    }
+
+    function endTurn() {
+      gameActive = false;
+      clearInterval(timerInterval);
+      
+      soundManager.playTimeUp();
+      showNotification('¡Tiempo!', false);
+      
+      clearInput();
+      
+      setTimeout(() => {
+        if (currentPlayerIndex < numberOfPlayers - 1) {
+          currentPlayerIndex++;
+        } else {
+          currentPlayerIndex = 0;
+          currentRound++;
+        }
+        
+        if (currentRound > 3) {
+          endGame();
+          return;
+        }
+        
+        showCurrentPlayerInfo();
+        showRoundIndicator();
+        startNewRound();
+      }, 2000);
+    }
+
+    function endGame() {
+      let maxScore = Math.max(...playerScores);
+      let winnerIndex = playerScores.indexOf(maxScore);
+      let winnerName = players[winnerIndex];
+      
+      document.getElementById('finalScore').textContent = maxScore;
+      document.getElementById('winnerName').textContent = winnerName;
+      document.getElementById('winnerScore').textContent = maxScore;
+      document.getElementById('gameOverTitle').textContent = "🎉 ¡Juego Terminado!";
+      document.getElementById('gameOverMessage').textContent = `¡Felicidades! El ganador es ${winnerName} con ${maxScore} puntos.`;
+      document.getElementById('gameOver').style.display = 'flex';
+    }
+
+    function isValidWord(word) {
+      if (word.length < 3) return { valid: false, message: 'La palabra debe tener al menos 3 letras.' };
+      if (validWordsSet.size === 0) return { valid: false, message: 'El diccionario no está disponible.'};
+
+      const normalized = normalizeWord(word);
+      const available = [...gameLetters];
+      const tempLetterUsage = { ...letterUsageCount };
+
+      for (const char of word.toUpperCase()) {
+        let foundIndex = -1;
+        for (let i = 0; i < available.length; i++) {
+          if (available[i] === char) {
+            const isVowel = VOWELS.includes(char);
+            if (isVowel || tempLetterUsage[i] === 0) {
+              foundIndex = i;
+              break;
+            }
+          }
+        }
+        
+        if (foundIndex === -1) {
+          return { valid: false, message: `La letra "${char}" no está disponible.` };
+        }
+        
+        tempLetterUsage[foundIndex]++;
+      }
+
+      if (!validWordsSet.has(normalized)) return { valid: false, message: 'Palabra no reconocida.' };
+      if (foundWords.some(w => normalizeWord(w) === normalized)) return { valid: false, message: 'Palabra ya encontrada.' };
+      
+      return { valid: true };
+    }
+
+    function showNotification(message, isSuccess) {
+      const n = document.getElementById('notification');
+      n.textContent = message;
+      n.className = `notification ${isSuccess ? 'success' : 'error'}`;
+      n.style.display = 'block';
+      setTimeout(() => { n.style.display = 'none' }, 3000);
+    }
+
+    function clearInput() {
+      document.getElementById('wordInput').value = '';
+    }
+
+    function submitWord() {
+      if (!gameActive) return;
+      
+      const input = document.getElementById('wordInput');
+      const word = input.value.trim();
+      
+      if (!word) {
+        showNotification('Escribe una palabra.', false);
+        soundManager.playError();
+        return;
+      }
+      
+      const validation = isValidWord(word);
+      
+      if (validation.valid) {
+        foundWords.push(word);
+        
+        // Actualizar el uso de letras
+        for (const char of word.toUpperCase()) {
+            for(let i = 0; i < gameLetters.length; i++){
+                if(gameLetters[i] === char && !VOWELS.includes(char)){
+                    letterUsageCount[i]++;
+                    break;
+                }
+            }
+        }
+        
+        roundWordCount++;
+        let pointsPerLetter = 10;
+        if (roundWordCount === 2) pointsPerLetter = 20;
+        else if (roundWordCount === 3) pointsPerLetter = 30;
+        else if (roundWordCount === 4) pointsPerLetter = 50;
+        else if (roundWordCount >= 5) pointsPerLetter = 100;
+        
+        const wordScore = word.length * pointsPerLetter;
+        score += wordScore;
+        playerScores[currentPlayerIndex] += wordScore;
+        
+        document.getElementById('score').textContent = score;
+        updatePlayersScoresDisplay();
+        
+        const wordEl = document.createElement('div');
+        wordEl.className = 'found-word';
+        wordEl.textContent = word.toLowerCase();
+        document.getElementById('wordsList').appendChild(wordEl);
+        
+        soundManager.playSuccess();
+        showNotification(`¡Correcto! +${wordScore} puntos`, true);
+        renderLetters();
+        input.value = '';
+        
+        const allConsonantsUsed = gameLetters.every((letter, index) => VOWELS.includes(letter) || letterUsageCount[index] > 0);
+        
+        if (allConsonantsUsed) {
+          showNotification('¡Todas las consonantes usadas!', true);
+          setTimeout(endTurn, 2000);
+        }
+      } else {
+        soundManager.playError();
+        showNotification(validation.message, false);
+        setTimeout(() => {
+          input.value = '';
+          input.focus();
+        }, 1500);
+      }
+      input.focus();
+    }
+
+    function updatePlayersScoresDisplay() {
+      const scoresDiv = document.getElementById('playersScores');
+      scoresDiv.innerHTML = '';
+      
+      for (let i = 0; i < numberOfPlayers; i++) {
+        const playerScore = document.createElement('div');
+        playerScore.className = 'player-score';
+        playerScore.textContent = `${players[i]}: ${playerScores[i]} puntos`;
+        scoresDiv.appendChild(playerScore);
+      }
+    }
+
+    function showCurrentPlayerInfo() {
+      const currentPlayerIndicator = document.getElementById('currentPlayerIndicator');
+      currentPlayerIndicator.textContent = `🎯 TURNO DE: ${players[currentPlayerIndex]} 🎯`;
+      currentPlayerIndicator.style.display = 'block';
+    }
+
+    function showRoundIndicator() {
+      const roundIndicator = document.getElementById('roundIndicator');
+      roundIndicator.textContent = `RONDA ${currentRound} de 3`;
+      roundIndicator.style.display = 'block';
+    }
+
+    // Event listeners
+    document.getElementById('startGameButton').addEventListener('click', setupPlayers);
+    document.getElementById('startTimerButton').addEventListener('click', startTimer);
+    document.getElementById('submitWord').addEventListener('click', submitWord);
+    document.getElementById('clearButton').addEventListener('click', clearInput);
+    document.getElementById('wordInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') submitWord();
+    });
+    // *** LISTENER MODIFICADO PARA USAR LA NUEVA FUNCIÓN DE RESETEO ***
+    document.getElementById('playAgain').addEventListener('click', resetFullGame);
+
+    document.addEventListener('click', () => {
+      if (soundManager.audioContext && soundManager.audioContext.state === 'suspended') {
+        soundManager.audioContext.resume();
+      }
+    }, { once: true });
+
+    window.addEventListener('load', async () => {
+      await loadDictionary();
+      setupPlayerCount();
+      setupEnterNavigation();
+      document.getElementById('player1').focus();
+    });
+  </script>
+</body>
+</html>
