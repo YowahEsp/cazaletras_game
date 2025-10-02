@@ -237,15 +237,12 @@
   </style>
 </head>
 <body>
-  <!-- Formulario para configurar jugadores -->
   <div class="player-setup" id="playerSetup">
     <div class="setup-form">
       <h2>🎮 Configurar Jugadores</h2>
       
-      <!-- Indicador de carga del diccionario -->
       <div id="dictionaryStatus" class="loading">Preparando juego...</div>
       
-      <!-- Selector de número de jugadores -->
       <div class="player-count-selector" id="playerCountSelector" style="display: none;">
         <label>¿Cuántos jugadores van a jugar?</label>
         <div class="player-count-buttons">
@@ -291,8 +288,7 @@
           <div id="wordsList"></div>
         </div>
         <div class="players-scores" id="playersScores">
-          <!-- Aquí se mostrarán los puntajes de los jugadores -->
-        </div>
+          </div>
         <div id="currentPlayerIndicator" class="current-player" style="display: none;"></div>
         <div id="roundIndicator" class="round-indicator" style="display: none;"></div>
       </div>
@@ -384,7 +380,8 @@
     let invalidWordsCache = new Set();
     let isDictionaryReady = false;
 
-    // Función para verificar una palabra usando la API de Wiktionary
+    // --- FUNCIÓN MODIFICADA ---
+    // Función para verificar una palabra usando la API de Wiktionary, asegurando que sea del idioma español
     async function checkWordInWiktionary(word) {
       // Si ya sabemos que es válida, devolver true
       if (validWordsCache.has(word)) {
@@ -397,7 +394,8 @@
       }
 
       try {
-        const url = `https://es.wiktionary.org/w/api.php?action=query&titles=${encodeURIComponent(word)}&format=json&origin=*`;
+        // Modificamos la URL para obtener el contenido de la página (wikitext)
+        const url = `https://es.wiktionary.org/w/api.php?action=query&titles=${encodeURIComponent(word)}&prop=revisions&rvprop=content&format=json&origin=*`;
         
         // Timeout de 5 segundos para la petición
         const controller = new AbortController();
@@ -412,26 +410,34 @@
         
         const data = await response.json();
         const pages = data.query.pages;
+        const pageId = Object.keys(pages)[0];
         
-        // Si alguna de las páginas tiene un ID negativo, la palabra no existe
-        let exists = false;
-        for (const pageId in pages) {
-          if (parseInt(pageId) > 0) {
-            exists = true;
-            break;
+        let isValidSpanishWord = false;
+
+        // Primero, verificamos si la página existe (pageId > 0)
+        if (parseInt(pageId) > 0) {
+          const page = pages[pageId];
+          // Verificamos si hay revisiones con contenido
+          if (page.revisions && page.revisions[0] && page.revisions[0]['*']) {
+            const content = page.revisions[0]['*'];
+            // Buscamos la cabecera de idioma español '== {{lengua|es}} =='
+            // Esto asegura que la entrada corresponde al idioma español
+            if (content.includes('== {{lengua|es}} ==')) {
+              isValidSpanishWord = true;
+            }
           }
         }
         
-        // Guardar en caché
-        if (exists) {
+        // Guardar en caché el resultado
+        if (isValidSpanishWord) {
           validWordsCache.add(word);
-          console.log(`Palabra "${word}" encontrada en Wiktionary`);
+          console.log(`Palabra "${word}" encontrada y validada como española en Wiktionary`);
         } else {
           invalidWordsCache.add(word);
-          console.log(`Palabra "${word}" NO encontrada en Wiktionary`);
+          console.log(`Palabra "${word}" NO encontrada o NO es española en Wiktionary`);
         }
         
-        return exists;
+        return isValidSpanishWord;
       } catch (error) {
         console.error('Error verificando palabra en Wiktionary:', error);
         
