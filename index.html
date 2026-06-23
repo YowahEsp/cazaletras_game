@@ -183,7 +183,7 @@
         <div id="currentPlayerIndicator" class="current-player" style="display:none;"></div>
         <button id="startTimerButton" class="start-timer-button" style="display:none;">⏰ Pulsa para comenzar tu turno</button>
         <div class="word-input">
-          <input type="text" id="wordInput" placeholder="Escribe tu palabra..." maxlength="15" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" disabled>
+          <input type="text" id="wordInput" placeholder="Escribe tu palabra..." maxlength="15" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="none" readonly disabled>
           <button id="clearButton" disabled>🧹 Limpiar</button>
           <button id="submitWord" disabled>✅ Enviar</button>
         </div>
@@ -637,4 +637,4 @@
     });
   </script>
 </body>
-</html>  Mi juego tiene un bug que no permite jugar en dispositivos móviles como tablets. El problema está en que cuando se juega, se abre el teclado del móvil y tapa el juego. Si el juego ya tiene sus letras, en con el juego en ejecución no hace falta que se active el teclado. Soluciona el bug.
+</html>
